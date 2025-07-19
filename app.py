@@ -66,8 +66,10 @@ class SkinCancerDetector:
     def load_model(_self):
     """Cargar el modelo entrenado"""
     try:
+        import os
         print("Ruta modelo:", os.path.abspath(_self.model_path))
         print("¿Archivo existe?", os.path.exists(_self.model_path))
+        
         _self.model = load_model(_self.model_path)
         return True
     except Exception as e:
