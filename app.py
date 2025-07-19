@@ -6,9 +6,11 @@ import numpy as np
 import cv2
 import io
 import base64
+import os
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pathlib import Path
 
 # Configuración de la página
 st.set_page_config(
@@ -55,24 +57,106 @@ st.markdown("""
         border-radius: 5px;
         margin: 1rem 0;
     }
+    .warning-box {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 1rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 class SkinCancerDetector:
-    def __init__(self, model_path='models/skin_cancer_model.h5'):
+    def __init__(self):
         self.model = None
-        self.model_path = model_path
         self.img_size = (224, 224)
-        self.load_model()
+        self.model_loaded = False
+        self.find_and_load_model()
     
-    @st.cache_resource
-    def load_model(_self):
-        """Cargar el modelo entrenado"""
+    def find_and_load_model(self):
+        """Buscar y cargar el modelo en diferentes ubicaciones posibles"""
+        possible_paths = [
+            'models/skin_cancer_model.h5',
+            './models/skin_cancer_model.h5',
+            'skin_cancer_model.h5',
+            './skin_cancer_model.h5',
+            os.path.join(os.path.dirname(__file__), 'models', 'skin_cancer_model.h5'),
+            os.path.join(os.path.dirname(__file__), 'skin_cancer_model.h5')
+        ]
+        
+        # Verificar si existe el archivo del modelo
+        model_found = False
+        for path in possible_paths:
+            if os.path.exists(path):
+                try:
+                    self.model = load_model(path)
+                    self.model_loaded = True
+                    model_found = True
+                    st.success(f"✅ Modelo cargado exitosamente desde: {path}")
+                    break
+                except Exception as e:
+                    st.warning(f"⚠️ Error al cargar modelo desde {path}: {str(e)}")
+                    continue
+        
+        if not model_found:
+            self.model_loaded = False
+            st.error("❌ No se pudo encontrar el archivo del modelo")
+            self.show_model_instructions()
+    
+    def show_model_instructions(self):
+        """Mostrar instrucciones para solucionar el problema del modelo"""
+        st.markdown("""
+        <div class="warning-box">
+            <h3>⚠️ Modelo No Encontrado</h3>
+            <p>Para que la aplicación funcione correctamente, necesitas:</p>
+            <ol>
+                <li><strong>Subir el archivo del modelo:</strong> Asegúrate de que <code>skin_cancer_model.h5</code> esté en tu repositorio de GitHub</li>
+                <li><strong>Verificar la estructura:</strong> El archivo debe estar en la carpeta <code>models/</code></li>
+                <li><strong>Verificar Git LFS:</strong> Los archivos grandes (.h5) requieren Git LFS</li>
+            </ol>
+            <p>Estructura recomendada del repositorio:</p>
+            <pre>
+detector-cancer-piel/
+├── app.py
+├── requirements.txt
+├── models/
+│   └── skin_cancer_model.h5
+└── README.md
+            </pre>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    def create_demo_model(self):
+        """Crear un modelo de demostración para pruebas"""
         try:
-            _self.model = load_model(_self.model_path)
+            st.info("🔄 Creando modelo de demostración...")
+            
+            # Crear un modelo simple para demostración
+            from tensorflow.keras.models import Sequential
+            from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D
+            
+            model = Sequential([
+                Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),
+                MaxPooling2D((2, 2)),
+                Conv2D(64, (3, 3), activation='relu'),
+                MaxPooling2D((2, 2)),
+                Conv2D(64, (3, 3), activation='relu'),
+                Flatten(),
+                Dense(64, activation='relu'),
+                Dense(1, activation='sigmoid')
+            ])
+            
+            model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            self.model = model
+            self.model_loaded = True
+            
+            st.warning("⚠️ Usando modelo de demostración - Los resultados no son reales")
             return True
+            
         except Exception as e:
-            st.error(f"Error al cargar el modelo: {str(e)}")
+            st.error(f"Error creando modelo de demostración: {str(e)}")
             return False
     
     def preprocess_image(self, image):
@@ -101,14 +185,14 @@ class SkinCancerDetector:
     
     def predict(self, image):
         """Hacer predicción sobre la imagen"""
-        if self.model is None:
-            return None, None
+        if not self.model_loaded:
+            return None, None, None
         
         try:
             # Preprocesar imagen
             processed_image = self.preprocess_image(image)
             if processed_image is None:
-                return None, None
+                return None, None, None
             
             # Hacer predicción
             prediction = self.model.predict(processed_image)
@@ -127,7 +211,24 @@ class SkinCancerDetector:
             st.error(f"Error en la predicción: {str(e)}")
             return None, None, None
 
+def check_requirements():
+    """Verificar que las dependencias estén instaladas"""
+    try:
+        import tensorflow
+        import PIL
+        import matplotlib
+        import seaborn
+        return True
+    except ImportError as e:
+        st.error(f"Dependencia faltante: {e}")
+        st.info("Asegúrate de tener un archivo requirements.txt con todas las dependencias")
+        return False
+
 def main():
+    # Verificar dependencias
+    if not check_requirements():
+        st.stop()
+    
     # Título principal
     st.markdown('<h1 class="main-header">🔬 Detector de Cáncer de Piel</h1>', unsafe_allow_html=True)
     
@@ -162,12 +263,21 @@ def main():
         - Requiere imágenes de alta calidad
         """)
         
-        st.markdown('<h2 class="sub-header">📊 Estadísticas del Modelo</h2>', unsafe_allow_html=True)
-        st.markdown("""
-        - **Datos de entrenamiento**: 6,000 imágenes
-        - **Datos de prueba**: 1,000 imágenes
-        - **Arquitectura**: CNN profunda
-        - **Precisión estimada**: ~85-90%
+        # Mostrar estado del modelo
+        st.markdown('<h2 class="sub-header">🤖 Estado del Modelo</h2>', unsafe_allow_html=True)
+        if detector.model_loaded:
+            st.success("✅ Modelo cargado correctamente")
+        else:
+            st.error("❌ Modelo no disponible")
+            if st.button("🔄 Crear Modelo de Demo"):
+                detector.create_demo_model()
+                st.rerun()
+        
+        st.markdown('<h2 class="sub-header">📊 Información del Sistema</h2>', unsafe_allow_html=True)
+        st.markdown(f"""
+        - **TensorFlow**: {tf.__version__}
+        - **Python**: {os.sys.version.split()[0]}
+        - **Directorio actual**: {os.getcwd()}
         """)
     
     # Área principal de la aplicación
@@ -196,72 +306,75 @@ def main():
         st.markdown('<h2 class="sub-header">🔍 Resultado del Análisis</h2>', unsafe_allow_html=True)
         
         if uploaded_file is not None:
-            # Botón para analizar
-            if st.button("🔬 Analizar Imagen", type="primary"):
-                with st.spinner("Analizando imagen..."):
-                    # Hacer predicción
-                    result, confidence, risk_level = detector.predict(image)
-                    
-                    if result is not None:
-                        # Mostrar resultado
-                        if result == "Maligno":
-                            st.markdown(f"""
-                            <div class="result-box malignant-result">
-                                <h3>⚠️ Resultado: {result}</h3>
-                                <p><strong>Nivel de riesgo:</strong> {risk_level}</p>
-                                <p><strong>Confianza:</strong> {confidence:.2%}</p>
-                                <p><strong>Recomendación:</strong> Consulte inmediatamente con un dermatólogo</p>
+            if not detector.model_loaded:
+                st.error("❌ No se puede realizar el análisis sin el modelo")
+                st.info("Por favor, sigue las instrucciones en el panel lateral para solucionar el problema del modelo.")
+            else:
+                # Botón para analizar
+                if st.button("🔬 Analizar Imagen", type="primary"):
+                    with st.spinner("Analizando imagen..."):
+                        # Hacer predicción
+                        result, confidence, risk_level = detector.predict(image)
+                        
+                        if result is not None:
+                            # Mostrar resultado
+                            if result == "Maligno":
+                                st.markdown(f"""
+                                <div class="result-box malignant-result">
+                                    <h3>⚠️ Resultado: {result}</h3>
+                                    <p><strong>Nivel de riesgo:</strong> {risk_level}</p>
+                                    <p><strong>Confianza:</strong> {confidence:.2%}</p>
+                                    <p><strong>Recomendación:</strong> Consulte inmediatamente con un dermatólogo</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"""
+                                <div class="result-box benign-result">
+                                    <h3>✅ Resultado: {result}</h3>
+                                    <p><strong>Nivel de riesgo:</strong> {risk_level}</p>
+                                    <p><strong>Confianza:</strong> {(1-confidence):.2%}</p>
+                                    <p><strong>Recomendación:</strong> Mantenga observación periódica</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            
+                            # Gráfico de confianza
+                            st.markdown('<h3 class="sub-header">📊 Nivel de Confianza</h3>', unsafe_allow_html=True)
+                            
+                            fig, ax = plt.subplots(figsize=(10, 6))
+                            
+                            if result == "Maligno":
+                                probs = [1-confidence, confidence]
+                            else:
+                                probs = [1-confidence, confidence]
+                            
+                            colors = ['#28a745', '#dc3545']
+                            bars = ax.bar(['Benigno', 'Maligno'], probs, color=colors, alpha=0.7)
+                            ax.set_ylabel('Probabilidad')
+                            ax.set_title('Probabilidad de Clasificación')
+                            ax.set_ylim(0, 1)
+                            
+                            # Agregar valores en las barras
+                            for i, (bar, prob) in enumerate(zip(bars, probs)):
+                                ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.01,
+                                       f'{prob:.2%}', ha='center', va='bottom')
+                            
+                            plt.tight_layout()
+                            st.pyplot(fig)
+                            
+                            # Información adicional
+                            st.markdown("""
+                            <div class="info-box">
+                                <h4>🩺 Próximos Pasos Recomendados</h4>
+                                <ul>
+                                    <li>Consulte con un dermatólogo profesional</li>
+                                    <li>Lleve esta imagen a su cita médica</li>
+                                    <li>Documente cualquier cambio en la lesión</li>
+                                    <li>Mantenga un seguimiento regular</li>
+                                </ul>
                             </div>
                             """, unsafe_allow_html=True)
                         else:
-                            st.markdown(f"""
-                            <div class="result-box benign-result">
-                                <h3>✅ Resultado: {result}</h3>
-                                <p><strong>Nivel de riesgo:</strong> {risk_level}</p>
-                                <p><strong>Confianza:</strong> {(1-confidence):.2%}</p>
-                                <p><strong>Recomendación:</strong> Mantenga observación periódica</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        # Gráfico de confianza
-                        st.markdown('<h3 class="sub-header">📊 Nivel de Confianza</h3>', unsafe_allow_html=True)
-                        
-                        fig, ax = plt.subplots(figsize=(10, 6))
-                        
-                        if result == "Maligno":
-                            probs = [1-confidence, confidence]
-                            colors = ['#28a745', '#dc3545']
-                        else:
-                            probs = [1-confidence, confidence]
-                            colors = ['#28a745', '#dc3545']
-                        
-                        bars = ax.bar(['Benigno', 'Maligno'], probs, color=colors, alpha=0.7)
-                        ax.set_ylabel('Probabilidad')
-                        ax.set_title('Probabilidad de Clasificación')
-                        ax.set_ylim(0, 1)
-                        
-                        # Agregar valores en las barras
-                        for i, (bar, prob) in enumerate(zip(bars, probs)):
-                            ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.01,
-                                   f'{prob:.2%}', ha='center', va='bottom')
-                        
-                        plt.tight_layout()
-                        st.pyplot(fig)
-                        
-                        # Información adicional
-                        st.markdown("""
-                        <div class="info-box">
-                            <h4>🩺 Próximos Pasos Recomendados</h4>
-                            <ul>
-                                <li>Consulte con un dermatólogo profesional</li>
-                                <li>Lleve esta imagen a su cita médica</li>
-                                <li>Documente cualquier cambio en la lesión</li>
-                                <li>Mantenga un seguimiento regular</li>
-                            </ul>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.error("No se pudo analizar la imagen. Inténtelo nuevamente.")
+                            st.error("No se pudo analizar la imagen. Inténtelo nuevamente.")
         else:
             st.info("👆 Por favor, suba una imagen para comenzar el análisis")
     
