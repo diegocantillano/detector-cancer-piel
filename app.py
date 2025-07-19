@@ -59,10 +59,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 class SkinCancerDetector:
-    def __init__(self, model_path='models/skin_cancer_model.h5'):
-        self.model_path = model_path
-        self.img_size = (224, 224)
-        self.model = load_skin_cancer_model(self.model_path)
+    def load_skin_cancer_model(model_path='models/skin_cancer_model.h5'):
+    try:
+        model = load_model(model_path)
+        return model
+    except Exception as e:
+        st.error(f"Error al cargar el modelo: {str(e)}")
+        return None
     
     @st.cache_resource
     def load_skin_cancer_model(model_path='models/skin_cancer_model.h5'):
