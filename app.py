@@ -109,7 +109,7 @@ class SkinCancerDetector:
             # Preprocesar imagen
             processed_image = self.preprocess_image(image)
             if processed_image is None:
-                return None, None
+                return None, None, None
             
             # Hacer predicción
             prediction = self.model.predict(processed_image)
