@@ -82,6 +82,7 @@ class SkinCancerDetector:
 
     def load_image(image_file):
     try:
+        imagen = load_image(uploaded_file)
         img = Image.open(image_file)
         img = img.convert('RGB')
         img = img.resize((224, 224))  # Ajustar al tamaño que espera el modelo
