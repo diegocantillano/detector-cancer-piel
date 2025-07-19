@@ -101,14 +101,28 @@ class SkinCancerDetector:
     
     def predict(self, image):
         """Hacer predicción sobre la imagen"""
-        if self.model is None:
-            return None, None
-        
-        try:
-            # Preprocesar imagen
-            processed_image = self.preprocess_image(image)
-            if processed_image is None:
-                return None, None
+         if self.model is None:
+        return None, None, None  # <- CORREGIDO
+    
+    try:
+        processed_image = self.preprocess_image(image)
+        if processed_image is None:
+            return None, None, None  # <- CORREGIDO
+
+        prediction = self.model.predict(processed_image)
+        confidence = float(prediction[0][0])
+
+        if confidence > 0.5:
+            result = "Maligno"
+            risk_level = "Alto"
+        else:
+            result = "Benigno"
+            risk_level = "Bajo"
+
+        return result, confidence, risk_level
+    except Exception as e:
+        st.error(f"Error en la predicción: {str(e)}")
+        return None, None, None
             
             # Hacer predicción
             prediction = self.model.predict(processed_image)
