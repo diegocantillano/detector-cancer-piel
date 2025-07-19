@@ -119,6 +119,11 @@ class SkinCancerDetector:
             result = "Benigno"
             risk_level = "Bajo"
 
+        if result is not None and confidence is not None and risk_level is not None:
+    # mostrar resultados
+else:
+    st.error("❌ Hubo un error al procesar la imagen.")
+
         return result, confidence, risk_level
     except Exception as e:
         st.error(f"Error en la predicción: {str(e)}")
