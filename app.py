@@ -227,7 +227,20 @@ def main():
             if st.button("🔬 Analizar Imagen", type="primary"):
                 with st.spinner("Analizando imagen..."):
                     # Hacer predicción
-                    result, confidence, risk_level = detector.predict(image)
+                        result, confidence, risk_level = detector.predict(image)
+            
+            if result is not None:
+                # Mostrar resultados (todo tu código actual)
+                if result == "Maligno":
+                    st.markdown(f"""...""", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""...""", unsafe_allow_html=True)
+                # Resto de tu código para gráfico y recomendaciones
+                
+            else:
+                st.error("No se pudo analizar la imagen. Inténtelo nuevamente.")
+        except Exception as e:
+            st.error(f"Error inesperado al analizar la imagen: {str(e)}")
                     
                     if result is not None:
                         # Mostrar resultado
