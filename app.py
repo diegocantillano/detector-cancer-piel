@@ -557,7 +557,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 2rem; background-color: #f8f9fa; border-radius: 10px; margin-top: 2rem;">
-        <h4>🔬 Detector de Cáncer de Piel</h4>
+        <h4>🔬 Detector de Cáncer de Piel (Por Diego Cantillano L.)</h4>
         <p><strong>Tecnologías utilizadas:</strong> TensorFlow • Streamlit • Python • OpenCV</p>
         <p><strong>⚠️ Aviso médico importante:</strong> Esta herramienta es solo para fines educativos e informativos. 
         No constituye asesoramiento médico y no debe utilizarse como sustituto del diagnóstico profesional.</p>
