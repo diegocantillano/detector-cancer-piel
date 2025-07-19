@@ -1,344 +1,310 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "de11b7a2-ded5-451f-88d1-b3e7a6093941",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import streamlit as st\n",
-    "import tensorflow as tf\n",
-    "from tensorflow.keras.models import load_model\n",
-    "from PIL import Image\n",
-    "import numpy as np\n",
-    "import cv2\n",
-    "import io\n",
-    "import base64\n",
-    "from datetime import datetime\n",
-    "import matplotlib.pyplot as plt\n",
-    "import seaborn as sns\n",
-    "\n",
-    "# Configuración de la página\n",
-    "st.set_page_config(\n",
-    "    page_title=\"Detector de Cáncer de Piel\",\n",
-    "    page_icon=\"🔬\",\n",
-    "    layout=\"wide\",\n",
-    "    initial_sidebar_state=\"expanded\"\n",
-    ")\n",
-    "\n",
-    "# Estilos CSS personalizados\n",
-    "st.markdown(\"\"\"\n",
-    "<style>\n",
-    "    .main-header {\n",
-    "        font-size: 3rem;\n",
-    "        color: #1f77b4;\n",
-    "        text-align: center;\n",
-    "        margin-bottom: 2rem;\n",
-    "    }\n",
-    "    .sub-header {\n",
-    "        font-size: 1.5rem;\n",
-    "        color: #ff7f0e;\n",
-    "        margin-bottom: 1rem;\n",
-    "    }\n",
-    "    .result-box {\n",
-    "        padding: 1rem;\n",
-    "        border-radius: 10px;\n",
-    "        margin: 1rem 0;\n",
-    "    }\n",
-    "    .benign-result {\n",
-    "        background-color: #d4edda;\n",
-    "        border: 1px solid #c3e6cb;\n",
-    "        color: #155724;\n",
-    "    }\n",
-    "    .malignant-result {\n",
-    "        background-color: #f8d7da;\n",
-    "        border: 1px solid #f5c6cb;\n",
-    "        color: #721c24;\n",
-    "    }\n",
-    "    .info-box {\n",
-    "        background-color: #d1ecf1;\n",
-    "        border: 1px solid #bee5eb;\n",
-    "        color: #0c5460;\n",
-    "        padding: 1rem;\n",
-    "        border-radius: 5px;\n",
-    "        margin: 1rem 0;\n",
-    "    }\n",
-    "</style>\n",
-    "\"\"\", unsafe_allow_html=True)\n",
-    "\n",
-    "class SkinCancerDetector:\n",
-    "    def __init__(self, model_path='skin_cancer_model.h5'):\n",
-    "        self.model = None\n",
-    "        self.model_path = model_path\n",
-    "        self.img_size = (224, 224)\n",
-    "        self.load_model()\n",
-    "    \n",
-    "    @st.cache_resource\n",
-    "    def load_model(_self):\n",
-    "        \"\"\"Cargar el modelo entrenado\"\"\"\n",
-    "        try:\n",
-    "            _self.model = load_model(_self.model_path)\n",
-    "            return True\n",
-    "        except Exception as e:\n",
-    "            st.error(f\"Error al cargar el modelo: {str(e)}\")\n",
-    "            return False\n",
-    "    \n",
-    "    def preprocess_image(self, image):\n",
-    "        \"\"\"Preprocesar la imagen para el modelo\"\"\"\n",
-    "        try:\n",
-    "            # Convertir a RGB si es necesario\n",
-    "            if image.mode != 'RGB':\n",
-    "                image = image.convert('RGB')\n",
-    "            \n",
-    "            # Redimensionar\n",
-    "            image = image.resize(self.img_size)\n",
-    "            \n",
-    "            # Convertir a array numpy\n",
-    "            img_array = np.array(image)\n",
-    "            \n",
-    "            # Normalizar\n",
-    "            img_array = img_array / 255.0\n",
-    "            \n",
-    "            # Expandir dimensiones para el batch\n",
-    "            img_array = np.expand_dims(img_array, axis=0)\n",
-    "            \n",
-    "            return img_array\n",
-    "        except Exception as e:\n",
-    "            st.error(f\"Error al procesar la imagen: {str(e)}\")\n",
-    "            return None\n",
-    "    \n",
-    "    def predict(self, image):\n",
-    "        \"\"\"Hacer predicción sobre la imagen\"\"\"\n",
-    "        if self.model is None:\n",
-    "            return None, None\n",
-    "        \n",
-    "        try:\n",
-    "            # Preprocesar imagen\n",
-    "            processed_image = self.preprocess_image(image)\n",
-    "            if processed_image is None:\n",
-    "                return None, None\n",
-    "            \n",
-    "            # Hacer predicción\n",
-    "            prediction = self.model.predict(processed_image)\n",
-    "            confidence = float(prediction[0][0])\n",
-    "            \n",
-    "            # Interpretar resultado\n",
-    "            if confidence > 0.5:\n",
-    "                result = \"Maligno\"\n",
-    "                risk_level = \"Alto\"\n",
-    "            else:\n",
-    "                result = \"Benigno\"\n",
-    "                risk_level = \"Bajo\"\n",
-    "            \n",
-    "            return result, confidence, risk_level\n",
-    "        except Exception as e:\n",
-    "            st.error(f\"Error en la predicción: {str(e)}\")\n",
-    "            return None, None, None\n",
-    "\n",
-    "def main():\n",
-    "    # Título principal\n",
-    "    st.markdown('<h1 class=\"main-header\">🔬 Detector de Cáncer de Piel</h1>', unsafe_allow_html=True)\n",
-    "    \n",
-    "    # Información sobre la aplicación\n",
-    "    st.markdown(\"\"\"\n",
-    "    <div class=\"info-box\">\n",
-    "        <h3>ℹ️ Información Importante</h3>\n",
-    "        <p>Esta aplicación utiliza inteligencia artificial para analizar imágenes de lunares y lesiones cutáneas, \n",
-    "        ayudando en la detección temprana de melanomas. Sin embargo, <strong>NO reemplaza el diagnóstico médico profesional</strong>.</p>\n",
-    "        <p><strong>Siempre consulte con un dermatólogo para un diagnóstico definitivo.</strong></p>\n",
-    "    </div>\n",
-    "    \"\"\", unsafe_allow_html=True)\n",
-    "    \n",
-    "    # Inicializar el detector\n",
-    "    detector = SkinCancerDetector()\n",
-    "    \n",
-    "    # Sidebar con información\n",
-    "    with st.sidebar:\n",
-    "        st.markdown('<h2 class=\"sub-header\">📋 Instrucciones</h2>', unsafe_allow_html=True)\n",
-    "        st.markdown(\"\"\"\n",
-    "        1. **Suba una imagen** de la lesión cutánea\n",
-    "        2. **Asegúrese** de que la imagen sea clara y bien iluminada\n",
-    "        3. **Revise** el resultado de la predicción\n",
-    "        4. **Consulte** con un médico especialista\n",
-    "        \"\"\")\n",
-    "        \n",
-    "        st.markdown('<h2 class=\"sub-header\">⚠️ Limitaciones</h2>', unsafe_allow_html=True)\n",
-    "        st.markdown(\"\"\"\n",
-    "        - Solo para fines educativos\n",
-    "        - Precisión limitada\n",
-    "        - No reemplaza diagnóstico médico\n",
-    "        - Requiere imágenes de alta calidad\n",
-    "        \"\"\")\n",
-    "        \n",
-    "        st.markdown('<h2 class=\"sub-header\">📊 Estadísticas del Modelo</h2>', unsafe_allow_html=True)\n",
-    "        st.markdown(\"\"\"\n",
-    "        - **Datos de entrenamiento**: 6,000 imágenes\n",
-    "        - **Datos de prueba**: 1,000 imágenes\n",
-    "        - **Arquitectura**: CNN profunda\n",
-    "        - **Precisión estimada**: ~85-90%\n",
-    "        \"\"\")\n",
-    "    \n",
-    "    # Área principal de la aplicación\n",
-    "    col1, col2 = st.columns([1, 1])\n",
-    "    \n",
-    "    with col1:\n",
-    "        st.markdown('<h2 class=\"sub-header\">📤 Subir Imagen</h2>', unsafe_allow_html=True)\n",
-    "        \n",
-    "        uploaded_file = st.file_uploader(\n",
-    "            \"Seleccione una imagen de la lesión cutánea\",\n",
-    "            type=['jpg', 'jpeg', 'png'],\n",
-    "            help=\"Formatos soportados: JPG, JPEG, PNG\"\n",
-    "        )\n",
-    "        \n",
-    "        if uploaded_file is not None:\n",
-    "            # Mostrar imagen original\n",
-    "            image = Image.open(uploaded_file)\n",
-    "            st.image(image, caption=\"Imagen cargada\", use_column_width=True)\n",
-    "            \n",
-    "            # Información de la imagen\n",
-    "            st.write(f\"**Tamaño original:** {image.size}\")\n",
-    "            st.write(f\"**Formato:** {image.format}\")\n",
-    "            st.write(f\"**Modo:** {image.mode}\")\n",
-    "    \n",
-    "    with col2:\n",
-    "        st.markdown('<h2 class=\"sub-header\">🔍 Resultado del Análisis</h2>', unsafe_allow_html=True)\n",
-    "        \n",
-    "        if uploaded_file is not None:\n",
-    "            # Botón para analizar\n",
-    "            if st.button(\"🔬 Analizar Imagen\", type=\"primary\"):\n",
-    "                with st.spinner(\"Analizando imagen...\"):\n",
-    "                    # Hacer predicción\n",
-    "                    result, confidence, risk_level = detector.predict(image)\n",
-    "                    \n",
-    "                    if result is not None:\n",
-    "                        # Mostrar resultado\n",
-    "                        if result == \"Maligno\":\n",
-    "                            st.markdown(f\"\"\"\n",
-    "                            <div class=\"result-box malignant-result\">\n",
-    "                                <h3>⚠️ Resultado: {result}</h3>\n",
-    "                                <p><strong>Nivel de riesgo:</strong> {risk_level}</p>\n",
-    "                                <p><strong>Confianza:</strong> {confidence:.2%}</p>\n",
-    "                                <p><strong>Recomendación:</strong> Consulte inmediatamente con un dermatólogo</p>\n",
-    "                            </div>\n",
-    "                            \"\"\", unsafe_allow_html=True)\n",
-    "                        else:\n",
-    "                            st.markdown(f\"\"\"\n",
-    "                            <div class=\"result-box benign-result\">\n",
-    "                                <h3>✅ Resultado: {result}</h3>\n",
-    "                                <p><strong>Nivel de riesgo:</strong> {risk_level}</p>\n",
-    "                                <p><strong>Confianza:</strong> {(1-confidence):.2%}</p>\n",
-    "                                <p><strong>Recomendación:</strong> Mantenga observación periódica</p>\n",
-    "                            </div>\n",
-    "                            \"\"\", unsafe_allow_html=True)\n",
-    "                        \n",
-    "                        # Gráfico de confianza\n",
-    "                        st.markdown('<h3 class=\"sub-header\">📊 Nivel de Confianza</h3>', unsafe_allow_html=True)\n",
-    "                        \n",
-    "                        fig, ax = plt.subplots(figsize=(10, 6))\n",
-    "                        \n",
-    "                        if result == \"Maligno\":\n",
-    "                            probs = [1-confidence, confidence]\n",
-    "                            colors = ['#28a745', '#dc3545']\n",
-    "                        else:\n",
-    "                            probs = [1-confidence, confidence]\n",
-    "                            colors = ['#28a745', '#dc3545']\n",
-    "                        \n",
-    "                        bars = ax.bar(['Benigno', 'Maligno'], probs, color=colors, alpha=0.7)\n",
-    "                        ax.set_ylabel('Probabilidad')\n",
-    "                        ax.set_title('Probabilidad de Clasificación')\n",
-    "                        ax.set_ylim(0, 1)\n",
-    "                        \n",
-    "                        # Agregar valores en las barras\n",
-    "                        for i, (bar, prob) in enumerate(zip(bars, probs)):\n",
-    "                            ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.01,\n",
-    "                                   f'{prob:.2%}', ha='center', va='bottom')\n",
-    "                        \n",
-    "                        plt.tight_layout()\n",
-    "                        st.pyplot(fig)\n",
-    "                        \n",
-    "                        # Información adicional\n",
-    "                        st.markdown(\"\"\"\n",
-    "                        <div class=\"info-box\">\n",
-    "                            <h4>🩺 Próximos Pasos Recomendados</h4>\n",
-    "                            <ul>\n",
-    "                                <li>Consulte con un dermatólogo profesional</li>\n",
-    "                                <li>Lleve esta imagen a su cita médica</li>\n",
-    "                                <li>Documente cualquier cambio en la lesión</li>\n",
-    "                                <li>Mantenga un seguimiento regular</li>\n",
-    "                            </ul>\n",
-    "                        </div>\n",
-    "                        \"\"\", unsafe_allow_html=True)\n",
-    "                    else:\n",
-    "                        st.error(\"No se pudo analizar la imagen. Inténtelo nuevamente.\")\n",
-    "        else:\n",
-    "            st.info(\"👆 Por favor, suba una imagen para comenzar el análisis\")\n",
-    "    \n",
-    "    # Información adicional\n",
-    "    st.markdown(\"---\")\n",
-    "    st.markdown('<h2 class=\"sub-header\">📚 Información Adicional</h2>', unsafe_allow_html=True)\n",
-    "    \n",
-    "    col1, col2, col3 = st.columns(3)\n",
-    "    \n",
-    "    with col1:\n",
-    "        st.markdown(\"\"\"\n",
-    "        ### 🎯 Sobre el Melanoma\n",
-    "        El melanoma es el tipo más serio de cáncer de piel. Se desarrolla en las células que producen melanina (pigmento). La detección temprana es crucial para el tratamiento exitoso.\n",
-    "        \"\"\")\n",
-    "    \n",
-    "    with col2:\n",
-    "        st.markdown(\"\"\"\n",
-    "        ### 🔍 Regla ABCDE\n",
-    "        - **A**simetría\n",
-    "        - **B**ordes irregulares\n",
-    "        - **C**olor variado\n",
-    "        - **D**iámetro > 6mm\n",
-    "        - **E**volución/cambios\n",
-    "        \"\"\")\n",
-    "    \n",
-    "    with col3:\n",
-    "        st.markdown(\"\"\"\n",
-    "        ### 📞 Cuándo Consultar\n",
-    "        - Lunares nuevos\n",
-    "        - Cambios en lunares existentes\n",
-    "        - Picazón o sangrado\n",
-    "        - Crecimiento rápido\n",
-    "        - Cualquier preocupación\n",
-    "        \"\"\")\n",
-    "    \n",
-    "    # Footer\n",
-    "    st.markdown(\"---\")\n",
-    "    st.markdown(\"\"\"\n",
-    "    <div style=\"text-align: center; color: #666; padding: 2rem;\">\n",
-    "        <p>🔬 Desarrollado con TensorFlow y Streamlit</p>\n",
-    "        <p>⚠️ Solo para fines educativos - No reemplaza el diagnóstico médico profesional</p>\n",
-    "    </div>\n",
-    "    \"\"\", unsafe_allow_html=True)\n",
-    "\n",
-    "if __name__ == \"__main__\":\n",
-    "    main()"
-   ]
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3 (ipykernel)",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.12.8"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+import streamlit as st
+import tensorflow as tf
+from tensorflow.keras.models import load_model
+from PIL import Image
+import numpy as np
+import cv2
+import io
+import base64
+from datetime import datetime
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Configuración de la página
+st.set_page_config(
+    page_title="Detector de Cáncer de Piel",
+    page_icon="🔬",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Estilos CSS personalizados
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 3rem;
+        color: #1f77b4;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .sub-header {
+        font-size: 1.5rem;
+        color: #ff7f0e;
+        margin-bottom: 1rem;
+    }
+    .result-box {
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+    }
+    .benign-result {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    .malignant-result {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+    .info-box {
+        background-color: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 1rem 0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+class SkinCancerDetector:
+    def __init__(self, model_path='skin_cancer_model.h5'):
+        self.model = None
+        self.model_path = model_path
+        self.img_size = (224, 224)
+        self.load_model()
+    
+    @st.cache_resource
+    def load_model(_self):
+        """Cargar el modelo entrenado"""
+        try:
+            _self.model = load_model(_self.model_path)
+            return True
+        except Exception as e:
+            st.error(f"Error al cargar el modelo: {str(e)}")
+            return False
+    
+    def preprocess_image(self, image):
+        """Preprocesar la imagen para el modelo"""
+        try:
+            # Convertir a RGB si es necesario
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            # Redimensionar
+            image = image.resize(self.img_size)
+            
+            # Convertir a array numpy
+            img_array = np.array(image)
+            
+            # Normalizar
+            img_array = img_array / 255.0
+            
+            # Expandir dimensiones para el batch
+            img_array = np.expand_dims(img_array, axis=0)
+            
+            return img_array
+        except Exception as e:
+            st.error(f"Error al procesar la imagen: {str(e)}")
+            return None
+    
+    def predict(self, image):
+        """Hacer predicción sobre la imagen"""
+        if self.model is None:
+            return None, None
+        
+        try:
+            # Preprocesar imagen
+            processed_image = self.preprocess_image(image)
+            if processed_image is None:
+                return None, None
+            
+            # Hacer predicción
+            prediction = self.model.predict(processed_image)
+            confidence = float(prediction[0][0])
+            
+            # Interpretar resultado
+            if confidence > 0.5:
+                result = "Maligno"
+                risk_level = "Alto"
+            else:
+                result = "Benigno"
+                risk_level = "Bajo"
+            
+            return result, confidence, risk_level
+        except Exception as e:
+            st.error(f"Error en la predicción: {str(e)}")
+            return None, None, None
+
+def main():
+    # Título principal
+    st.markdown('<h1 class="main-header">🔬 Detector de Cáncer de Piel</h1>', unsafe_allow_html=True)
+    
+    # Información sobre la aplicación
+    st.markdown("""
+    <div class="info-box">
+        <h3>ℹ️ Información Importante</h3>
+        <p>Esta aplicación utiliza inteligencia artificial para analizar imágenes de lunares y lesiones cutáneas, 
+        ayudando en la detección temprana de melanomas. Sin embargo, <strong>NO reemplaza el diagnóstico médico profesional</strong>.</p>
+        <p><strong>Siempre consulte con un dermatólogo para un diagnóstico definitivo.</strong></p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Inicializar el detector
+    detector = SkinCancerDetector()
+    
+    # Sidebar con información
+    with st.sidebar:
+        st.markdown('<h2 class="sub-header">📋 Instrucciones</h2>', unsafe_allow_html=True)
+        st.markdown("""
+        1. **Suba una imagen** de la lesión cutánea
+        2. **Asegúrese** de que la imagen sea clara y bien iluminada
+        3. **Revise** el resultado de la predicción
+        4. **Consulte** con un médico especialista
+        """)
+        
+        st.markdown('<h2 class="sub-header">⚠️ Limitaciones</h2>', unsafe_allow_html=True)
+        st.markdown("""
+        - Solo para fines educativos
+        - Precisión limitada
+        - No reemplaza diagnóstico médico
+        - Requiere imágenes de alta calidad
+        """)
+        
+        st.markdown('<h2 class="sub-header">📊 Estadísticas del Modelo</h2>', unsafe_allow_html=True)
+        st.markdown("""
+        - **Datos de entrenamiento**: 6,000 imágenes
+        - **Datos de prueba**: 1,000 imágenes
+        - **Arquitectura**: CNN profunda
+        - **Precisión estimada**: ~85-90%
+        """)
+    
+    # Área principal de la aplicación
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown('<h2 class="sub-header">📤 Subir Imagen</h2>', unsafe_allow_html=True)
+        
+        uploaded_file = st.file_uploader(
+            "Seleccione una imagen de la lesión cutánea",
+            type=['jpg', 'jpeg', 'png'],
+            help="Formatos soportados: JPG, JPEG, PNG"
+        )
+        
+        if uploaded_file is not None:
+            # Mostrar imagen original
+            image = Image.open(uploaded_file)
+            st.image(image, caption="Imagen cargada", use_column_width=True)
+            
+            # Información de la imagen
+            st.write(f"**Tamaño original:** {image.size}")
+            st.write(f"**Formato:** {image.format}")
+            st.write(f"**Modo:** {image.mode}")
+    
+    with col2:
+        st.markdown('<h2 class="sub-header">🔍 Resultado del Análisis</h2>', unsafe_allow_html=True)
+        
+        if uploaded_file is not None:
+            # Botón para analizar
+            if st.button("🔬 Analizar Imagen", type="primary"):
+                with st.spinner("Analizando imagen..."):
+                    # Hacer predicción
+                    result, confidence, risk_level = detector.predict(image)
+                    
+                    if result is not None:
+                        # Mostrar resultado
+                        if result == "Maligno":
+                            st.markdown(f"""
+                            <div class="result-box malignant-result">
+                                <h3>⚠️ Resultado: {result}</h3>
+                                <p><strong>Nivel de riesgo:</strong> {risk_level}</p>
+                                <p><strong>Confianza:</strong> {confidence:.2%}</p>
+                                <p><strong>Recomendación:</strong> Consulte inmediatamente con un dermatólogo</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                            <div class="result-box benign-result">
+                                <h3>✅ Resultado: {result}</h3>
+                                <p><strong>Nivel de riesgo:</strong> {risk_level}</p>
+                                <p><strong>Confianza:</strong> {(1-confidence):.2%}</p>
+                                <p><strong>Recomendación:</strong> Mantenga observación periódica</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        # Gráfico de confianza
+                        st.markdown('<h3 class="sub-header">📊 Nivel de Confianza</h3>', unsafe_allow_html=True)
+                        
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        
+                        if result == "Maligno":
+                            probs = [1-confidence, confidence]
+                            colors = ['#28a745', '#dc3545']
+                        else:
+                            probs = [1-confidence, confidence]
+                            colors = ['#28a745', '#dc3545']
+                        
+                        bars = ax.bar(['Benigno', 'Maligno'], probs, color=colors, alpha=0.7)
+                        ax.set_ylabel('Probabilidad')
+                        ax.set_title('Probabilidad de Clasificación')
+                        ax.set_ylim(0, 1)
+                        
+                        # Agregar valores en las barras
+                        for i, (bar, prob) in enumerate(zip(bars, probs)):
+                            ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.01,
+                                   f'{prob:.2%}', ha='center', va='bottom')
+                        
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                        
+                        # Información adicional
+                        st.markdown("""
+                        <div class="info-box">
+                            <h4>🩺 Próximos Pasos Recomendados</h4>
+                            <ul>
+                                <li>Consulte con un dermatólogo profesional</li>
+                                <li>Lleve esta imagen a su cita médica</li>
+                                <li>Documente cualquier cambio en la lesión</li>
+                                <li>Mantenga un seguimiento regular</li>
+                            </ul>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.error("No se pudo analizar la imagen. Inténtelo nuevamente.")
+        else:
+            st.info("👆 Por favor, suba una imagen para comenzar el análisis")
+    
+    # Información adicional
+    st.markdown("---")
+    st.markdown('<h2 class="sub-header">📚 Información Adicional</h2>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        ### 🎯 Sobre el Melanoma
+        El melanoma es el tipo más serio de cáncer de piel. Se desarrolla en las células que producen melanina (pigmento). La detección temprana es crucial para el tratamiento exitoso.
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 🔍 Regla ABCDE
+        - **A**simetría
+        - **B**ordes irregulares
+        - **C**olor variado
+        - **D**iámetro > 6mm
+        - **E**volución/cambios
+        """)
+    
+    with col3:
+        st.markdown("""
+        ### 📞 Cuándo Consultar
+        - Lunares nuevos
+        - Cambios en lunares existentes
+        - Picazón o sangrado
+        - Crecimiento rápido
+        - Cualquier preocupación
+        """)
+    
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; color: #666; padding: 2rem;">
+        <p>🔬 Desarrollado con TensorFlow y Streamlit</p>
+        <p>⚠️ Solo para fines educativos - No reemplaza el diagnóstico médico profesional</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    main()
