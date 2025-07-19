@@ -59,7 +59,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 class SkinCancerDetector:
-    def __init__(self, model_path='model/skin_cancer_model.h5'):
+    def __init__(self, model_path='models/skin_cancer_model.h5'):
         self.model = None
         self.model_path = model_path
         self.img_size = (224, 224)
