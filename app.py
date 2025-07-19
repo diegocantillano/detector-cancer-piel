@@ -3,12 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from PIL import Image
 import numpy as np
-import cv2
-import io
-import base64
-from datetime import datetime
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 # Configuración de la página
 st.set_page_config(
@@ -58,7 +53,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
 class SkinCancerDetector:
     def __init__(self, model_path='skin_cancer_model.h5'):
         self.model = None
@@ -79,56 +73,53 @@ class SkinCancerDetector:
     def preprocess_image(self, image):
         """Preprocesar la imagen para el modelo"""
         try:
-            # Convertir a RGB si es necesario
             if image.mode != 'RGB':
                 image = image.convert('RGB')
-
-            # Redimensionar
             image = image.resize(self.img_size)
-
-            # Convertir a array numpy
             img_array = np.array(image)
-
-            # Normalizar
             img_array = img_array / 255.0
-
-            # Expandir dimensiones para el batch
             img_array = np.expand_dims(img_array, axis=0)
-
             return img_array
         except Exception as e:
             st.error(f"Error al procesar la imagen: {str(e)}")
             return None
 
     def predict(self, image):
-        """Hacer predicción sobre la imagen"""
         if self.model is None:
             return None, None, None
-
         try:
-            # Preprocesar imagen
             processed_image = self.preprocess_image(image)
             if processed_image is None:
                 return None, None, None
-
-            # Hacer predicción
             prediction = self.model.predict(processed_image)
             confidence = float(prediction[0][0])
-
-            # Interpretar resultado
             if confidence > 0.5:
                 result = "Maligno"
                 risk_level = "Alto"
             else:
                 result = "Benigno"
                 risk_level = "Bajo"
-
             return result, confidence, risk_level
         except Exception as e:
             st.error(f"Error en la predicción: {str(e)}")
             return None, None, None
 
-
 def main():
-    # Título principal
-    st.markdown('<h1 class=
+    st.markdown('<h1 class="main-header">🔬 Detector de Cáncer de Piel</h1>', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="info-box">
+        <h3>ℹ️ Información Importante</h3>
+        <p>Esta aplicación utiliza inteligencia artificial para analizar imágenes de lunares y lesiones cutáneas, 
+        ayudando en la detección temprana de melanomas. Sin embargo, <strong>NO reemplaza el diagnóstico médico profesional</strong>.</p>
+        <p><strong>Siempre consulte con un dermatólogo para un diagnóstico definitivo.</strong></p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    detector = SkinCancerDetector()
+
+    with st.sidebar:
+        st.markdown('<h2 class="sub-header">📋 Instrucciones</h2>', unsafe_allow_html=True)
+        st.markdown("""
+        1. **Suba una imagen** de la lesión cutáne
+
