@@ -186,7 +186,7 @@ def main():
         if uploaded_file is not None:
             # Mostrar imagen original
             image = Image.open(uploaded_file)
-            st.image(image, caption="Imagen cargada", use_column_width=True)
+            st.image(image, caption="Imagen cargada", use_container_width=True)
             
             # Información de la imagen
             st.write(f"**Tamaño original:** {image.size}")
