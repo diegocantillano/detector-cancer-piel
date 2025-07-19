@@ -9,10 +9,6 @@ import base64
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
-import os
-import streamlit as st
-from PIL import Image
-import numpy as np
 
 # Configuración de la página
 st.set_page_config(
@@ -65,7 +61,7 @@ st.markdown("""
 class SkinCancerDetector:
     def __init__(self, model_path='models/skin_cancer_model.h5'):
         self.model = None
-        self.model_path = os.path.join("models", "skin_cancer_model.h5")
+        self.model_path = model_path
         self.img_size = (224, 224)
         self.load_model()
     
@@ -78,29 +74,6 @@ class SkinCancerDetector:
         except Exception as e:
             st.error(f"Error al cargar el modelo: {str(e)}")
             return False
-
-
-    def load_image(image_file):
-    try:
-        imagen = load_image(uploaded_file)
-        img = Image.open(image_file)
-        img = img.convert('RGB')
-        img = img.resize((224, 224))  # Ajustar al tamaño que espera el modelo
-        img_array = np.array(img) / 255.0  # Normalizar si es necesario
-        img_array = img_array.reshape((1, 224, 224, 3))  # Ajustar dimensiones para modelo
-        return img_array
-    except Exception as e:
-        st.error(f"No se pudo analizar la imagen. Inténtelo nuevamente.\nError: {e}")
-        return None
-
-uploaded_file = st.file_uploader("Sube una imagen")
-if uploaded_file is not None:
-    processed_image = load_image(uploaded_file)
-    if processed_image is not None:
-        # Aquí llamas a tu modelo para hacer la predicción
-        prediction = model.predict(processed_image)
-        st.write("Predicción:", prediction)
-
     
     def preprocess_image(self, image):
         """Preprocesar la imagen para el modelo"""
@@ -129,13 +102,13 @@ if uploaded_file is not None:
     def predict(self, image):
         """Hacer predicción sobre la imagen"""
         if self.model is None:
-            return None, None, None
+            return None, None
         
         try:
             # Preprocesar imagen
             processed_image = self.preprocess_image(image)
             if processed_image is None:
-                return None, None, None
+                return None, None
             
             # Hacer predicción
             prediction = self.model.predict(processed_image)
@@ -212,7 +185,7 @@ def main():
         if uploaded_file is not None:
             # Mostrar imagen original
             image = Image.open(uploaded_file)
-            st.image(image, caption="Imagen cargada", use_container_width=True)
+            st.image(image, caption="Imagen cargada", use_column_width=True)
             
             # Información de la imagen
             st.write(f"**Tamaño original:** {image.size}")
@@ -227,20 +200,7 @@ def main():
             if st.button("🔬 Analizar Imagen", type="primary"):
                 with st.spinner("Analizando imagen..."):
                     # Hacer predicción
-                        result, confidence, risk_level = detector.predict(image)
-            
-            if result is not None:
-                # Mostrar resultados (todo tu código actual)
-                if result == "Maligno":
-                    st.markdown(f"""...""", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""...""", unsafe_allow_html=True)
-                # Resto de tu código para gráfico y recomendaciones
-                
-            else:
-                st.error("No se pudo analizar la imagen. Inténtelo nuevamente.")
-        except Exception as e:
-            st.error(f"Error inesperado al analizar la imagen: {str(e)}")
+                    result, confidence, risk_level = detector.predict(image)
                     
                     if result is not None:
                         # Mostrar resultado
