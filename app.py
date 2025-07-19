@@ -9,6 +9,7 @@ import base64
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 
 # Configuración de la página
 st.set_page_config(
