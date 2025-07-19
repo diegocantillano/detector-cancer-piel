@@ -66,11 +66,11 @@ class SkinCancerDetector:
     
     @st.cache_resource
     def load_skin_cancer_model(model_path='models/skin_cancer_model.h5'):
-    try:
-        model = load_model(model_path)
+        try:
+            model = load_model(model_path)
         return model
-    except Exception as e:
-        st.error(f"Error al cargar el modelo: {str(e)}")
+        except Exception as e:
+            st.error(f"Error al cargar el modelo: {str(e)}")
         return None
     
     def preprocess_image(self, image):
