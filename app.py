@@ -4,6 +4,7 @@ from tensorflow.keras.models import load_model
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 # Configuración de la página
 st.set_page_config(
@@ -63,13 +64,15 @@ class SkinCancerDetector:
 
     @st.cache_resource
     def load_model(_self):
-        """Cargar el modelo entrenado"""
-        try:
-            _self.model = load_model(_self.model_path)
-            return True
-        except Exception as e:
-            st.error(f"Error al cargar el modelo: {str(e)}")
-            return False
+    """Cargar el modelo entrenado"""
+    try:
+        print("Ruta modelo:", os.path.abspath(_self.model_path))
+        print("¿Archivo existe?", os.path.exists(_self.model_path))
+        _self.model = load_model(_self.model_path)
+        return True
+    except Exception as e:
+        st.error(f"Error al cargar el modelo: {str(e)}")
+        return False
 
     def preprocess_image(self, image):
         """Preprocesar la imagen para el modelo"""
