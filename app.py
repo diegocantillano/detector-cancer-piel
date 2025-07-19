@@ -103,7 +103,7 @@ class SkinCancerDetector:
     def predict(self, image):
         """Hacer predicción sobre la imagen"""
         if self.model is None:
-            return None, None
+            return None, None, None
         
         try:
             # Preprocesar imagen
